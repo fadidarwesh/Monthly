@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sigma Annual QC Performance & Product Stability Review Generator</title>
+<style>
+:root{
+  --navy:#123f54;--teal:#0d7b77;--ice:#eaf4f5;--line:#cbdde2;
+  --text:#24343c;--muted:#687982;--red:#b33a3a;--amber:#b47a15;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,"Segoe UI",sans-serif;color:var(--text);background:#f3f6f7}
+.toolbar{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);padding:12px 18px;box-shadow:0 2px 10px #0000000d}
+.toolbar-inner{max-width:1180px;margin:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{margin-left:auto;color:var(--navy);font-weight:800;font-size:18px}
+label{font-size:13px;font-weight:700}
+input,button{border:1px solid var(--line);border-radius:7px;background:#fff;padding:9px 11px;font:inherit}
+button{cursor:pointer;background:var(--navy);color:#fff;font-weight:700}
+button.secondary{background:var(--teal)}
+button:disabled{opacity:.45;cursor:wait}
+#status{width:100%;font-size:12px;color:var(--muted);min-height:18px}
+.help{max-width:1180px;margin:18px auto;padding:16px 18px;background:#fff;border:1px solid var(--line);border-radius:10px;line-height:1.75}
+.help h2{margin:0 0 6px;color:var(--navy);font-size:18px}
+#report{direction:ltr}
+.page{width:297mm;height:210mm;padding:15mm 13mm 14mm;margin:12px auto;background:#fff;position:relative;page-break-after:always;box-shadow:0 1px 8px #0002;overflow:hidden}
+.page:last-child{page-break-after:auto}
+.topbar{position:absolute;top:0;left:0;right:0;height:9mm;background:var(--navy);color:#fff;padding:1.15mm 13mm;font-size:9px;font-weight:700;display:flex;align-items:center;gap:2mm}
+.brand-logo{height:6.4mm;width:auto;border-radius:.7mm;background:#fff;display:block}
+.brand-text{white-space:nowrap}
+.footer{position:absolute;bottom:5mm;left:13mm;right:13mm;padding-top:2mm;border-top:1px solid var(--line);font-size:7.5px;color:var(--muted);display:flex;justify-content:space-between}
+h1{color:var(--navy);font-size:24px;margin:12mm 0 2mm}
+h2{color:var(--navy);font-size:17px;margin:4mm 0 1mm}
+.sub{color:var(--muted);font-size:10px;margin-bottom:3mm}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);background:var(--ice)}
+.card{text-align:center;border-left:1px solid var(--line);padding:2.4mm 1mm 1.7mm}
+.card:first-child{border-left:0}
+.card strong{display:block;font-size:19px;color:var(--navy)}
+.card span{font-size:8px}
+.summary-title{margin:3.2mm 0 1.5mm;font-weight:800;color:var(--navy);font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:7.8px}
+th{background:var(--navy);color:#fff;padding:1.25mm .55mm;border:1px solid #ffffff66;text-align:center;font-weight:800}
+td{border:1px solid var(--line);padding:1.02mm .5mm;text-align:center}
+td:first-child{text-align:left}
+tbody tr:nth-child(even){background:#f5f8fa}
+.charts{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-top:2.5mm}
+.chart{border:1px solid var(--line);height:61mm;background:#fff}
+.chart svg{width:100%;height:100%;display:block}
+.raw-chart{margin-top:3mm;border:1px solid var(--line);height:68mm;background:#fff}
+.raw-chart svg{width:100%;height:100%;display:block}
+.note{margin-top:2.5mm;padding:2.3mm;border:1px solid #e6c980;background:#fff8e8;font-size:7.7px;line-height:1.35}
+.red{color:var(--red)!important}
+.report-key{margin-top:2.5mm;padding:2.2mm 2.6mm;border:1px solid var(--line);background:#f8fbfc;font-size:7.4px;line-height:1.45;color:var(--text)}
+.report-key b{color:var(--navy)}
+.callout{margin-top:2.8mm;padding:3mm;border:1px solid var(--line);background:#f0f7f7;font-size:8px;line-height:1.45}
+.mini{font-size:7px;color:var(--muted)}
+.two-col{display:grid;grid-template-columns:1.25fr .9fr;gap:4mm;margin-top:3mm}
+
+@page{size:A4 landscape;margin:0}
+@media print{
+  body{background:#fff}
+  .toolbar,.help{display:none!important}
+  .page{margin:0;box-shadow:none}
+}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <div class="brand">Sigma Annual QC Performance & Stability Review</div>
+    <label>1. ملف الإكسل <input id="file" type="file" accept=".xlsx"></label>
+    <button id="generate">2. تجهيز التقرير السنوي المفصل</button>
+    <button id="print" class="secondary" disabled>3. إنشاء PDF جاهز للطباعة</button>
+    <div id="status">الأداة تولد تقرير YTD حتى آخر تاريخ بيانات فعلي في ملف Excel، وتستخدم المتوسطات الشهرية لإظهار الأداء والثبات. الملف لا يتم رفعه أو تعديله.</div>
+  </div>
+</div>
+
+<section class="help" id="help">
+  <h2>Annual QC Performance & Product Stability Report - YTD</h2>
+  يقرأ المنتجات من <b>Annual Report</b>، ثم يحدد فترة التقرير تلقائياً من 1 يناير حتى آخر تاريخ بيانات فعلي موجود في ملف Excel، ولا يعرض الأشهر المستقبلية.
+  يعتمد السنوي على المتوسطات الشهرية لإظهار الاتجاهات والثبات، ويعرض <b>Average</b> و<b>Std. Dev.</b> و<b>CV%</b> بدون مؤشرات رفض عامة.
+  يعرض Executive Review مختصر، ثم Product Stability Dashboard، ثم صفحات تفصيلية فقط للمنتجات التي لديها تاريخ شهري كافٍ. المنتجات قصيرة التاريخ تُعرض في صفحة مختصرة بدون رسومات مضللة.
+</section>
+
+<main id="report"></main>
+
+<script>
+"use strict";
+const SIGMA_LOGO_JPEG_B64="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";
+const $=s=>document.querySelector(s);
+const enc=new TextDecoder("utf-8");
+let current=null;
+
+const aliases={
+ "CEM I 52,5 R - Wi":"Ultra White 52.5R Wi",
+ "CEM II/A-LL 52,5 N - Wi":"Power White 52.5N W",
+ "CEM II/B-LL 42,5 N - Wi":"Super White 42.5N W",
+ "CEM II/B-LL 32,5 N - Wi":"Eco White 32.5N W",
+ "CEM II/A-P 52,5 N - M50":"M50"
+};
+const monthNames=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const colors=["#0d8b86","#d17b2a","#244e65","#7d5a8f"];
+
+function setStatus(t,e=false){$("#status").textContent=t;$("#status").style.color=e?"#b33a3a":"#687982"}
+function xmlDecode(s){return String(s).replace(/&#x([0-9a-f]+);/gi,(_,x)=>String.fromCodePoint(parseInt(x,16))).replace(/&#(\d+);/g,(_,x)=>String.fromCodePoint(Number(x))).replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,"&")}
+function excelDate(v){return new Date(Date.UTC(1899,11,30)+Number(v)*86400000)}
+function mean(a){a=a.filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null}
+function std(a){a=a.filter(Number.isFinite);if(a.length<2)return null;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1))}
+function cv(a){const m=mean(a),s=std(a);if(m===null||s===null||Math.abs(m)<0.10)return null;return s/Math.abs(m)*100}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
+function fmt(k,v){
+  if(v===null||v===undefined||!Number.isFinite(Number(v)))return "—";
+  v=Number(v);
+  if(k==="blaine")return (Math.round(v/10)*10).toLocaleString("en-US");
+  if(["d2","d7","d28","so3","mill","prod","cv"].includes(k))return v.toFixed(1);
+  return v.toFixed(2);
+}
+function sumCols(r,cols){
+  const a=cols.map(c=>Number(r[c])).filter(Number.isFinite);
+  return a.length?a.reduce((x,y)=>x+y,0):null;
+}
+function hasMainData(r){
+  return ["D","E","F","G","H","I","J","K","L","M","N","O","P","Q","AD","AE","AF","AI","AM","BU"].some(k=>Number.isFinite(r[k]));
+}
+
+class ZipReader{
+  constructor(buffer){this.buffer=buffer;this.view=new DataView(buffer);this.entries=new Map();this.parse()}
+  u16(o){return this.view.getUint16(o,true)}
+  u32(o){return this.view.getUint32(o,true)}
+  parse(){
+    let e=-1;
+    for(let i=this.buffer.byteLength-22;i>=Math.max(0,this.buffer.byteLength-65557);i--){
+      if(this.u32(i)===0x06054b50){e=i;break}
+    }
+    if(e<0)throw Error("Invalid XLSX/ZIP file");
+    const count=this.u16(e+10),start=this.u32(e+16);let p=start;
+    for(let i=0;i<count;i++){
+      if(this.u32(p)!==0x02014b50)throw Error("Invalid ZIP directory");
+      const method=this.u16(p+10),cs=this.u32(p+20),nl=this.u16(p+28),el=this.u16(p+30),cl=this.u16(p+32),lo=this.u32(p+42);
+      const name=enc.decode(new Uint8Array(this.buffer,p+46,nl));
+      this.entries.set(name,{method,cs,lo});p+=46+nl+el+cl;
+    }
+  }
+  async text(name){
+    const e=this.entries.get(name);if(!e)throw Error(`Missing ${name}`);
+    const nl=this.u16(e.lo+26),el=this.u16(e.lo+28),start=e.lo+30+nl+el;
+    const bytes=new Uint8Array(this.buffer,start,e.cs);let out;
+    if(e.method===0)out=bytes;
+    else if(e.method===8){
+      const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      out=new Uint8Array(await new Response(stream).arrayBuffer());
+    } else throw Error(`Unsupported ZIP method ${e.method}`);
+    return enc.decode(out);
+  }
+}
+
+function sharedStrings(xml){
+  const out=[];let m;const re=/<si\b[^>]*>([\s\S]*?)<\/si>/g;
+  while((m=re.exec(xml))){
+    let t="",q,tr=/<t\b[^>]*>([\s\S]*?)<\/t>/g;
+    while((q=tr.exec(m[1])))t+=xmlDecode(q[1]);
+    out.push(t);
+  }
+  return out;
+}
+
+function parseRows(xml,ss,fn){
+  let m;const rr=/<row\b[^>]*\br="(\d+)"[^>]*>([\s\S]*?)<\/row>/g;
+  while((m=rr.exec(xml))){
+    const row={};let c;
+    const cr=/<c\b([^>]*?\br="([A-Z]+)\d+"[^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+    while((c=cr.exec(m[2]))){
+      if(c[3]===undefined)continue;
+      const vm=c[3].match(/<v>([\s\S]*?)<\/v>/);if(!vm)continue;
+      const typ=(c[1].match(/\bt="([^"]+)"/)||[])[1],raw=xmlDecode(vm[1]);
+      let v=raw;
+      if(typ==="s")v=ss[Number(raw)]??"";
+      else if(typ!=="str"){const n=Number(raw);if(Number.isFinite(n))v=n}
+      row[c[2]]=v;
+    }
+    fn(Number(m[1]),row);
+  }
+}
+
+function lineChart(data,series,title,dec=1,raw=false){
+  const W=420,H=205,p={l:42,r:12,t:33,b:32};
+  const eligible=series.map(s=>({...s,pts:data.map((d,i)=>Number.isFinite(d[s.key])?{i,v:d[s.key]}:null).filter(Boolean)})).filter(s=>s.pts.length>=2);
+  if(!eligible.length)return `<svg viewBox="0 0 ${W} ${H}"><text x="${W/2}" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#123f54">${esc(title)}</text><text x="${W/2}" y="105" text-anchor="middle" font-size="10" fill="#687982">Trend omitted: fewer than 2 monthly averages</text></svg>`;
+  const vals=eligible.flatMap(s=>s.pts.map(p=>p.v));
+  let ymin=Math.min(...vals),ymax=Math.max(...vals),span=ymax-ymin,avg=mean(vals),pad=Math.max(span*.1,raw?2:(dec?0.05:5));
+  ymin=Math.max(0,ymin-pad);ymax=raw?Math.min(100,ymax+pad):ymax+pad;
+  if(ymax<=ymin)ymax=ymin+1;
+  const X=i=>p.l+(i/Math.max(1,data.length-1))*(W-p.l-p.r);
+  const Y=v=>p.t+(ymax-v)/(ymax-ymin)*(H-p.t-p.b);
+  let svg=`<svg viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="white"/><text x="${W/2}" y="17" text-anchor="middle" font-size="11.5" font-weight="700" fill="#123f54">${esc(title)}</text>`;
+  for(let i=0;i<5;i++){
+    const v=ymin+(ymax-ymin)*i/4,yy=Y(v);
+    svg+=`<line x1="${p.l}" y1="${yy}" x2="${W-p.r}" y2="${yy}" stroke="#dce7ea" stroke-width="1"/><text x="${p.l-5}" y="${yy+3}" text-anchor="end" font-size="8" fill="#586b74">${v.toFixed(dec)}</text>`;
+  }
+  eligible.forEach((s,si)=>{
+    const pts=s.pts.map(q=>`${X(q.i)},${Y(q.v)}`);
+    svg+=`<polyline points="${pts.join(" ")}" fill="none" stroke="${colors[si]}" stroke-width="2"/>`;
+    if(raw){
+      const lx=55+si*88;
+      svg+=`<line x1="${lx}" y1="29" x2="${lx+14}" y2="29" stroke="${colors[si]}" stroke-width="3"/><text x="${lx+18}" y="32" font-size="7" fill="#586b74">${esc(s.name)}</text>`;
+    }
+  });
+  [...new Set([0,Math.floor(data.length/2),data.length-1])].forEach(i=>{
+    if(i>=0&&data[i])svg+=`<text x="${X(i)}" y="${H-8}" text-anchor="middle" font-size="8" fill="#586b74">${esc(data[i].label+(data[i].mtd?" MTD":""))}</text>`;
+  });
+  return svg+"</svg>";
+}
+
+function shell(body,page,total){
+  return `<section class="page"><div class="topbar"><img class="brand-logo" src="data:image/jpeg;base64,${SIGMA_LOGO_JPEG_B64}" alt="Sigma logo"><span class="brand-text">SIGMA FOR INDUSTRY &amp; MINING &nbsp;|&nbsp; QUALITY CONTROL</span></div>${body}<div class="footer"><span>Prepared by Fadi Darweesh - Quality Control Manager - qc.manager_sigma@almoasron.com</span><span>Page ${page} of ${total}</span></div></section>`;
+}
+
+function buildData(year,dataThrough,products,avRows,strengthRows,hourlyRows){
+  return products.map(product=>{
+    const months=[];
+    for(let m=1;m<=dataThrough.getUTCMonth()+1;m++){
+      const ar=avRows.filter(r=>r.product===product&&r.month===m);
+      const sr=strengthRows.filter(r=>r.product===product&&r.month===m);
+      const hr=hourlyRows.filter(r=>r.product===product&&r.month===m);
+      const row={month:m,label:monthNames[m-1],mtd:m===dataThrough.getUTCMonth()+1,av_n:ar.length};
+      for(const k of ["r45","so3","blaine","clinker","lstar","mill","prod"])row[k]=mean(ar.map(x=>x[k]));
+      for(const k of ["d2","d7","d28"])row[k]=mean(sr.map(x=>x[k]));
+      for(const k of ["clinker","gypsum","pozzolan","limestone"])row["raw_"+k]=mean(hr.map(x=>x[k]));
+      const has=Object.entries(row).some(([k,v])=>!["month","label","mtd","av_n"].includes(k)&&Number.isFinite(v));
+      if(has)months.push(row);
+    }
+    if(!months.length)return null;
+    const stats=[];
+    for(const [k,label,unit] of [["r45","R45","%"],["blaine","Blaine","cm2/g"],["so3","SO3","%"],["d2","2-Day Strength","MPa"],["d7","7-Day Strength","MPa"],["d28","28-Day Strength","MPa"]]){
+      const vals=months.map(m=>m[k]).filter(Number.isFinite),m=mean(vals),s=std(vals);
+      stats.push({k,label,unit,n:vals.length,avg:m,min:vals.length?Math.min(...vals):null,max:vals.length?Math.max(...vals):null,sd:s,cv:cv(vals)});
+    }
+    const raw_stats=[];
+    for(const [k,label] of [["raw_clinker","Clinker"],["raw_gypsum","Gypsum"],["raw_pozzolan","Pozzolan"],["raw_limestone","Limestone"]]){
+      const vals=months.map(m=>m[k]).filter(Number.isFinite);
+      if(vals.length)raw_stats.push({k,label,n:vals.length,avg:mean(vals),min:Math.min(...vals),max:Math.max(...vals),range:Math.max(...vals)-Math.min(...vals)});
+    }
+    const review=stats.filter(s=>Number.isFinite(s.cv)&&s.n>=4&&["r45","blaine","so3","d28"].includes(s.k)).sort((a,b)=>b.cv-a.cv)[0];
+    return {
+      product,alias:aliases[product]||"",months,
+      av_n:months.reduce((s,m)=>s+(m.av_n||0),0),
+      stats,raw_stats,
+      focus:review?`${review.label} CV ${review.cv.toFixed(1)}%`:"Limited history",
+      focus_cv:review?review.cv:null,
+      focus_key:review?review.k:null
+    };
+  }).filter(p=>p&&p.stats.some(s=>s.n>0));
+}
+
+function statOf(p,k){return p.stats.find(s=>s.k===k)||{}}
+function rawStatsRows(p){
+  return (p.raw_stats||[]).map(r=>`<tr><td>${esc(r.label)}</td><td>${r.n}</td><td>${fmt("r45",r.avg)}</td><td>${fmt("r45",r.min)}</td><td>${fmt("r45",r.max)}</td><td>${fmt("r45",r.range)}</td></tr>`).join("");
+}
+function executiveFocus(products){
+  return products.filter(p=>Number.isFinite(p.focus_cv)).sort((a,b)=>b.focus_cv-a.focus_cv).slice(0,6);
+}
+function render(data){
+  const full=data.products.filter(p=>p.months.length>=6);
+  const limited=data.products.filter(p=>p.months.length<6);
+  const total=2+full.length+(limited.length?1:0);let page=1;
+  const focusRows=executiveFocus(data.products).map(p=>`<tr><td>${esc(p.product)}</td><td>${p.months.length}</td><td>${p.av_n}</td><td>${esc(p.focus)}</td></tr>`).join("");
+  const summary=data.products.map(p=>`<tr><td>${esc(p.product)}</td><td>${p.months.length}</td><td>${p.av_n}</td><td>${fmt("r45",statOf(p,"r45").avg)}</td><td>${fmt("cv",statOf(p,"r45").cv)}</td><td>${fmt("blaine",statOf(p,"blaine").avg)}</td><td>${fmt("cv",statOf(p,"blaine").cv)}</td><td>${fmt("d28",statOf(p,"d28").avg)}</td><td>${fmt("cv",statOf(p,"d28").cv)}</td><td>${esc(p.focus)}</td></tr>`).join("");
+
+  let html=shell(`<h1>ANNUAL QC PERFORMANCE & PRODUCT STABILITY REVIEW - ${data.year} YTD</h1>
+  <div class="sub">Reporting period: 01 Jan ${data.year} - ${data.dataThroughLabel} | Annual values are based on monthly averages | Current month is MTD when incomplete</div>
+  <div class="cards"><div class="card"><strong>${data.products.length}</strong><span>Products</span></div><div class="card"><strong>${data.products.reduce((s,p)=>s+p.av_n,0)}</strong><span>A.V Count YTD</span></div><div class="card"><strong>${data.dataThroughMonth}</strong><span>Reporting Months</span></div><div class="card"><strong>${data.dataThroughShort}</strong><span>Data Through</span></div></div>
+  <div class="callout"><b>Executive Reading:</b> This review establishes a neutral YTD baseline for product quality and process stability. It does not classify products as accepted or rejected; it highlights where variation should be reviewed using average, spread and CV%.</div>
+  <div class="summary-title">Key Stability Review Focus</div>
+  <table><thead><tr><th>Product</th><th>Months</th><th>A.V Count</th><th>Highest Relative Variation</th></tr></thead><tbody>${focusRows}</tbody></table>
+  <div class="summary-title">All Products YTD Summary</div>
+  <table><thead><tr><th>Product</th><th>Months</th><th>A.V</th><th>R45 Avg</th><th>R45 CV%</th><th>Blaine Avg</th><th>Blaine CV%</th><th>28D Avg</th><th>28D CV%</th><th>Review Focus</th></tr></thead><tbody>${summary}</tbody></table>
+  <div class="report-key"><b>Interpretation:</b> CV% is a stability indicator, not a compliance judgment. Lower CV generally means the monthly averages are more consistent.</div>`,page++,total);
+
+  const dashRows=data.products.slice().sort((a,b)=>(Number.isFinite(b.focus_cv)?b.focus_cv:-1)-(Number.isFinite(a.focus_cv)?a.focus_cv:-1)).map(p=>`<tr><td>${esc(p.product)}</td><td>${p.months.length}</td><td>${p.av_n}</td><td>${fmt("cv",statOf(p,"r45").cv)}</td><td>${fmt("cv",statOf(p,"blaine").cv)}</td><td>${fmt("cv",statOf(p,"so3").cv)}</td><td>${fmt("cv",statOf(p,"d28").cv)}</td><td>${esc(p.focus)}</td><td>${p.months.length<4?"Limited history":"Usable YTD baseline"}</td></tr>`).join("");
+  html+=shell(`<h2>PRODUCT STABILITY DASHBOARD</h2>
+  <div class="sub">Ranked view for management review. Products with fewer than 4 reported months are treated as limited annual history.</div>
+  <table><thead><tr><th>Product</th><th>Months</th><th>A.V</th><th>R45 CV%</th><th>Blaine CV%</th><th>SO3 CV%</th><th>28D CV%</th><th>Main Review Focus</th><th>Data Status</th></tr></thead><tbody>${dashRows}</tbody></table>
+  <div class="callout"><b>How to read this page:</b> A high CV% does not automatically mean non-conformance; it means higher relative variation and deserves process review. Stability and compliance should be discussed separately.</div>`,page++,total);
+
+  for(const p of full){
+    const monthRows=p.months.map(m=>`<tr><td>${m.label}${m.mtd?" MTD":""}</td><td>${m.av_n||"—"}</td><td>${fmt("r45",m.r45)}</td><td>${fmt("blaine",m.blaine)}</td><td>${fmt("so3",m.so3)}</td><td>${fmt("d2",m.d2)}</td><td>${fmt("d7",m.d7)}</td><td>${fmt("d28",m.d28)}</td></tr>`).join("");
+    const statRows=p.stats.map(s=>`<tr><td>${esc(s.label)}</td><td>${esc(s.unit)}</td><td>${s.n}</td><td>${fmt(s.k,s.avg)}</td><td>${fmt(s.k,s.sd)}</td><td>${fmt("cv",s.cv)}</td></tr>`).join("");
+    const material=/M10/i.test(p.product)?`<div class="note">Material composition trend is not applicable for M10 distribution in this review.</div>`:`<table><thead><tr><th>Material</th><th>n</th><th>Avg %</th><th>Min</th><th>Max</th><th>Range</th></tr></thead><tbody>${rawStatsRows(p)}</tbody></table>`;
+    html+=shell(`<h2>${esc(p.product)}${p.alias?` | ${esc(p.alias)}`:""}</h2>
+    <div class="sub">YTD stability view | ${p.months.length} reported months | Data through ${data.dataThroughLabel}</div>
+    <div class="cards"><div class="card"><strong>${p.months.length}</strong><span>Reported Months</span></div><div class="card"><strong>${p.av_n}</strong><span>A.V Count</span></div><div class="card"><strong>${fmt("cv",statOf(p,"r45").cv)}</strong><span>R45 CV%</span></div><div class="card"><strong>${fmt("cv",statOf(p,"blaine").cv)}</strong><span>Blaine CV%</span></div></div>
+    <div class="charts"><div class="chart">${lineChart(p.months,[{key:"r45",name:"R45"},{key:"so3",name:"SO3"}],"Fineness / SO3 Monthly Trend",1,false)}</div><div class="chart">${lineChart(p.months,[{key:"blaine",name:"Blaine"}],"Blaine Monthly Trend",0,false)}</div><div class="chart">${lineChart(p.months,[{key:"d2",name:"2D"},{key:"d7",name:"7D"},{key:"d28",name:"28D"}],"Strength Monthly Trend",1,false)}</div></div>
+    <div class="two-col"><div><div class="summary-title">Monthly Average Results</div><table><thead><tr><th>Month</th><th>A.V</th><th>R45</th><th>Blaine</th><th>SO3</th><th>2D</th><th>7D</th><th>28D</th></tr></thead><tbody>${monthRows}</tbody></table></div><div><div class="summary-title">Material Mix Summary</div>${material}</div></div>
+    <div class="summary-title">Stability Statistics from Monthly Averages</div><table><thead><tr><th>Parameter</th><th>Unit</th><th>n Months</th><th>Average</th><th>Std. Dev.</th><th>CV%</th></tr></thead><tbody>${statRows}</tbody></table>`,page++,total);
+  }
+
+  if(limited.length){
+    const blocks=limited.map(p=>{
+      const rows=p.months.map(m=>`<tr><td>${m.label}${m.mtd?" MTD":""}</td><td>${m.av_n||"—"}</td><td>${fmt("r45",m.r45)}</td><td>${fmt("blaine",m.blaine)}</td><td>${fmt("so3",m.so3)}</td><td>${fmt("d2",m.d2)}</td><td>${fmt("d7",m.d7)}</td><td>${fmt("d28",m.d28)}</td></tr>`).join("");
+      return `<div class="summary-title">${esc(p.product)}${p.alias?` | ${esc(p.alias)}`:""}</div><div class="mini">Reported months: ${p.months.length} | A.V Count: ${p.av_n} | Review status: ${esc(p.focus)}</div><table><thead><tr><th>Month</th><th>A.V</th><th>R45</th><th>Blaine</th><th>SO3</th><th>2D</th><th>7D</th><th>28D</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }).join("");
+    html+=shell(`<h2>LIMITED / SHORT HISTORY PRODUCTS</h2><div class="sub">Trend charts are intentionally suppressed when monthly history is too short, to avoid over-interpreting one or two points.</div>${blocks}`,page++,total);
+  }
+  $("#report").innerHTML=html;$("#help").style.display="none";$("#print").disabled=false;
+}
+
+async function generate(){
+  const file=$("#file").files[0];
+  if(!file)return setStatus("اختر ملف الإكسل أولاً.",true);
+  $("#generate").disabled=true;$("#print").disabled=true;
+  try{
+    setStatus("جاري قراءة Annual Report وA.V وStrength Tracker والمواد الأولية...");
+    const zip=new ZipReader(await file.arrayBuffer());
+    const ss=sharedStrings(await zip.text("xl/sharedStrings.xml"));
+    const annXml=await zip.text("xl/worksheets/sheet4.xml");
+    const mainXml=await zip.text("xl/worksheets/sheet1.xml");
+    const strXml=await zip.text("xl/worksheets/sheet7.xml");
+
+    let year=null,dataThrough=null,products=[];
+    parseRows(annXml,ss,(rn,c)=>{
+      if(rn===3&&Number.isFinite(c.B))year=c.B;
+      if(rn===27&&Number.isFinite(c.BA))dataThrough=excelDate(c.BA);
+      if(rn>=2&&rn<=20&&typeof c.BA==="string"&&c.BA.trim()&&!c.BA.startsWith("P_"))products.push(c.BA.trim());
+    });
+    products=[...new Set(products)];
+    if(!year||!products.length)throw Error("Annual Report year/product register was not found.");
+    const now=new Date();
+    const todayUTC=new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));
+    let actualMax=null;
+    const seenDate=d=>{if(d.getUTCFullYear()===year && d<=todayUTC && (!actualMax||d>actualMax))actualMax=d};
+
+    const avRows=[],hourlyRows=[],strengthRows=[];
+    parseRows(mainXml,ss,(rn,c)=>{
+      if(rn<5||!Number.isFinite(c.A)||typeof c.C!=="string")return;
+      const d=excelDate(c.A),product=c.C.trim();
+      if(d.getUTCFullYear()!==year||d>todayUTC||!products.includes(product))return;
+      if(!hasMainData(c))return;
+      seenDate(d);
+      const isAV=String(c.B||"").trim().toUpperCase()==="A.V";
+      if(isAV){
+        avRows.push({product,date:d,month:d.getUTCMonth()+1,r45:Number.isFinite(c.AI)?c.AI:null,so3:Number.isFinite(c.BU)?c.BU:null,blaine:Number.isFinite(c.AF)?c.AF:null,clinker:Number.isFinite(c.D)?c.D:null,lstar:Number.isFinite(c.AM)?c.AM:null,mill:Number.isFinite(c.AD)?c.AD:null,prod:Number.isFinite(c.AE)?c.AE:null});
+      }else{
+        hourlyRows.push({product,date:d,month:d.getUTCMonth()+1,clinker:sumCols(c,["D","E","F","G","H","I","J","K","L"]),gypsum:sumCols(c,["M","N"]),limestone:sumCols(c,["O"]),pozzolan:sumCols(c,["P","Q"])});
+      }
+    });
+
+    parseRows(strXml,ss,(rn,c)=>{
+      if(rn<16||!Number.isFinite(c.A)||typeof c.B!=="string")return;
+      const product=c.B.trim(),d=excelDate(c.A),note=String(c.M||"").toUpperCase();
+      if(!products.includes(product)||d.getUTCFullYear()!==year||d>todayUTC)return;
+      if(!Number.isFinite(c.E)&&!Number.isFinite(c.G)&&!Number.isFinite(c.I))return;
+      seenDate(d);
+      if(/REVIEW|SUPERSEDED|DUPLICATE/.test(note))return;
+      strengthRows.push({product,date:d,month:d.getUTCMonth()+1,d2:Number.isFinite(c.E)?c.E:null,d7:Number.isFinite(c.G)?c.G:null,d28:Number.isFinite(c.I)?c.I:null});
+    });
+
+    dataThrough=actualMax||dataThrough||todayUTC;
+    if(dataThrough>todayUTC)dataThrough=todayUTC;
+    const avRows2=avRows.filter(r=>r.date<=dataThrough);
+    const hourlyRows2=hourlyRows.filter(r=>r.date<=dataThrough);
+    const strengthRows2=strengthRows.filter(r=>r.date<=dataThrough);
+    const productData=buildData(year,dataThrough,products,avRows2,strengthRows2,hourlyRows2);
+    current={
+      year,
+      products:productData,
+      dataThroughMonth:dataThrough.getUTCMonth()+1,
+      dataThroughLabel:dataThrough.toLocaleString("en",{day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"}),
+      dataThroughShort:dataThrough.toLocaleString("en",{day:"2-digit",month:"short",timeZone:"UTC"})
+    };
+    render(current);
+    setStatus(`تم تجهيز التقرير السنوي Executive Review لعدد ${current.products.length} منتجات.`);
+  }catch(e){console.error(e);setStatus(`تعذر تجهيز التقرير: ${e.message}`,true)}
+  finally{$("#generate").disabled=false}
+}
+
+function latin(s){return String(s??"").replace(/₃/g,"3").replace(/²/g,"2").replace(/µ/g,"u").replace(/—/g,"-").replace(/°/g," deg ").replace(/[^\x20-\x7E]/g,"?")}
+function pe(s){return latin(s).replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)")}
+function bstr(s){return new TextEncoder().encode(s)}
+function b64bytes(s){const b=atob(s),o=new Uint8Array(b.length);for(let i=0;i<b.length;i++)o[i]=b.charCodeAt(i);return o}
+function join(parts){const n=parts.reduce((a,p)=>a+p.length,0),o=new Uint8Array(n);let k=0;for(const p of parts){o.set(p,k);k+=p.length}return o}
+
+function makePdf(data){
+  const W=841.89,H=595.28,N=[.071,.247,.329],T=[.051,.482,.467],O=[.82,.482,.165],D=[.141,.306,.396],P=[.49,.35,.56],L=[.796,.867,.886],M=[.408,.475,.51],I=[.918,.957,.961],PA=[1,.98,.94],PT=[.941,.969,.969];
+  const pages=[],F=x=>Number(x).toFixed(2).replace(/\.00$/,""),rgb=c=>c.map(F).join(" ");
+  const full=data.products.filter(p=>p.months.length>=6), limited=data.products.filter(p=>p.months.length<6);
+  const total=2+full.length+(limited.length?1:0);
+  function pg(){const a=[];pages.push(a);return a}
+  function stat(p,k){return p.stats.find(s=>s.k===k)||{}}
+  function txt(a,x,y,text,size,b=false,al="left",col=[.14,.2,.24]){text=latin(text);const tw=text.length*size*(b?.54:.5);if(al==="center")x-=tw/2;if(al==="right")x-=tw;a.push(`BT /${b?"F2":"F1"} ${F(size)} Tf ${rgb(col)} rg 1 0 0 1 ${F(x)} ${F(y)} Tm (${pe(text)}) Tj ET`)}
+  function rect(a,x,y,w,h,fill=null,stroke=null){if(fill)a.push(`${rgb(fill)} rg`);if(stroke)a.push(`${rgb(stroke)} RG .5 w`);a.push(`${F(x)} ${F(y)} ${F(w)} ${F(h)} re ${fill&&stroke?"B":fill?"f":"S"}`)}
+  function line(a,x1,y1,x2,y2,c=L,w=.5){a.push(`${rgb(c)} RG ${F(w)} w ${F(x1)} ${F(y1)} m ${F(x2)} ${F(y2)} l S`)}
+  function logo(a,x,y,w,h){a.push(`q ${F(w)} 0 0 ${F(h)} ${F(x)} ${F(y)} cm /Im1 Do Q`)}
+  function top(a,p,total){rect(a,0,H-25,W,25,N);logo(a,38,H-21.5,15.5,18);txt(a,60,H-16,"SIGMA FOR INDUSTRY & MINING | QUALITY CONTROL",6.3,true,"left",[1,1,1]);line(a,38,24,W-38,24);txt(a,38,13,"Prepared by Fadi Darweesh - Quality Control Manager - qc.manager_sigma@almoasron.com",5.8,false,"left",M);txt(a,W-38,13,`Page ${p} of ${total}`,5.8,false,"right",M)}
+  function cards(a,v,y,x=38,w=W-76,h=39){const cw=w/v.length;v.forEach((q,i)=>{rect(a,x+i*cw,y,cw,h,I,L);txt(a,x+i*cw+cw/2,y+23,String(q[0]),13,true,"center",N);txt(a,x+i*cw+cw/2,y+8,q[1],6.2,false,"center",M)})}
+  function table(a,headers,rows,topY,weights,fs=5.4,rh=15,x=38,w=W-76,hh=17){const cw=weights.map(q=>w*q/weights.reduce((s,v)=>s+v,0));let y=topY-hh;rect(a,x,y,w,hh,N);let xx=x;headers.forEach((h,i)=>{txt(a,xx+cw[i]/2,y+5.3,h,4.8,true,"center",[1,1,1]);xx+=cw[i]});rows.forEach((r,ri)=>{y-=rh;if(ri%2)rect(a,x,y,w,rh,[.965,.975,.98]);xx=x;r.forEach((v,i)=>{rect(a,xx,y,cw[i],rh,null,L);txt(a,i?xx+cw[i]/2:xx+3,y+(rh-fs)/2+1,String(v),fs,false,i?"center":"left");xx+=cw[i]})});return y}
+  function chart(a,x,y,w,h,months,series,title,dec=1,minPoints=4){
+    rect(a,x,y,w,h,[1,1,1],L);txt(a,x+w/2,y+h-13,title,8,true,"center",N);
+    if(months.length<minPoints){txt(a,x+w/2,y+h/2+6,"Trend intentionally not shown",7,false,"center",M);txt(a,x+w/2,y+h/2-6,"Less than 4 reported months",6,false,"center",M);return}
+    const elig=series.map(s=>({...s,pts:months.map((m,i)=>Number.isFinite(m[s.key])?[i,m[s.key]]:null).filter(Boolean)})).filter(s=>s.pts.length>=2);
+    if(!elig.length){txt(a,x+w/2,y+h/2,"No sufficient data",7,false,"center",M);return}
+    const vals=elig.flatMap(s=>s.pts.map(p=>p[1]));let mn=Math.min(...vals),mx=Math.max(...vals),span=mx-mn,pad=Math.max(span*.12,dec?0.08:20);mn=Math.max(0,mn-pad);mx=mx+pad;if(mx<=mn)mx=mn+1;
+    const px=x+34,py=y+23,pw=w-46,ph=h-50,X=i=>px+i/Math.max(1,months.length-1)*pw,Y=v=>py+(v-mn)/(mx-mn)*ph,cs=[T,O,D,P];
+    for(let i=0;i<5;i++){const yy=py+i*ph/4,v=mn+i*(mx-mn)/4;line(a,px,yy,px+pw,yy,[.86,.91,.92],.4);txt(a,px-4,yy-2,v.toFixed(dec),5.4,false,"right",M)}
+    let lx=x+44;elig.forEach((s,si)=>{line(a,lx,y+h-27,lx+11,y+h-27,cs[si],1.6);txt(a,lx+14,y+h-30,s.name,5.3,false,"left",M);lx+=55});
+    elig.forEach((s,si)=>{const pts=s.pts;let p=`${rgb(cs[si])} RG 1.4 w ${F(X(pts[0][0]))} ${F(Y(pts[0][1]))} m`;for(let i=1;i<pts.length;i++)p+=` ${F(X(pts[i][0]))} ${F(Y(pts[i][1]))} l`;p+=" S";a.push(p)});
+    [...new Set([0,Math.floor(months.length/2),months.length-1])].forEach(i=>{if(months[i])txt(a,X(i),y+7,months[i].label+(months[i].mtd?" MTD":""),5.5,false,"center",M)});
+  }
+
+  let pn=1,a=pg();top(a,pn++,total);
+  txt(a,38,H-58,`ANNUAL QC PERFORMANCE & PRODUCT STABILITY REVIEW - ${data.year} YTD`,17,true,"left",N);
+  txt(a,38,H-75,`Reporting period: 01 Jan ${data.year} - ${data.dataThroughLabel} | Annual values are based on monthly averages | Current month is MTD when incomplete`,7.2,false,"left",M);
+  cards(a,[[data.products.length,"Products"],[data.products.reduce((s,p)=>s+p.av_n,0),"A.V Count YTD"],[data.dataThroughMonth,"Reporting Months"],[data.dataThroughShort,"Data Through"]],H-126);
+  rect(a,38,H-185,W-76,46,PT,L);txt(a,46,H-153,"Executive Reading",9,true,"left",N);
+  txt(a,46,H-166,"This review establishes a neutral YTD baseline for product quality and process stability.",7.2,false,"left",M);
+  txt(a,46,H-176,"It does not classify products as accepted or rejected; it highlights where variation should be reviewed using Average, Spread and CV%.",7.2,false,"left",M);
+  const focus=data.products.filter(p=>Number.isFinite(p.focus_cv)).sort((a,b)=>b.focus_cv-a.focus_cv).slice(0,6).map(p=>[p.product,p.months.length,p.av_n,p.focus]);
+  txt(a,38,H-205,"Key Stability Review Focus",10,true,"left",N);
+  table(a,["Product","Months","A.V Count","Highest Relative Variation"],focus,H-213,[3.2,.7,.9,2.0],6.2,19);
+  const summary=data.products.map(p=>[p.product,p.months.length,p.av_n,fmt("r45",stat(p,"r45").avg),fmt("cv",stat(p,"r45").cv),fmt("blaine",stat(p,"blaine").avg),fmt("cv",stat(p,"blaine").cv),fmt("d28",stat(p,"d28").avg),fmt("cv",stat(p,"d28").cv),p.focus]);
+  txt(a,38,220,"All Products YTD Summary",10,true,"left",N);
+  table(a,["Product","Months","A.V","R45 Avg","R45 CV%","Blaine Avg","Blaine CV%","28D Avg","28D CV%","Review Focus"],summary,210,[2.8,.55,.6,.7,.7,.85,.75,.7,.7,1.4],5.05,14.8);
+  txt(a,38,42,"Interpretation: CV% is a stability indicator, not a compliance judgment. Lower CV generally means the monthly averages are more consistent.",6,false,"left",M);
+
+  a=pg();top(a,pn++,total);txt(a,38,H-60,"PRODUCT STABILITY DASHBOARD",16,true,"left",N);
+  txt(a,38,H-78,"Ranked view for management review. Products with fewer than 4 reported months are treated as limited annual history.",7,false,"left",M);
+  const dashboard=data.products.slice().sort((a,b)=>(Number.isFinite(b.focus_cv)?b.focus_cv:-1)-(Number.isFinite(a.focus_cv)?a.focus_cv:-1)).map(p=>[p.product,p.months.length,p.av_n,fmt("cv",stat(p,"r45").cv),fmt("cv",stat(p,"blaine").cv),fmt("cv",stat(p,"so3").cv),fmt("cv",stat(p,"d28").cv),p.focus,p.months.length<4?"Limited history":"Usable YTD baseline"]);
+  const ydash=table(a,["Product","Months","A.V","R45 CV%","Blaine CV%","SO3 CV%","28D CV%","Main Review Focus","Data Status"],dashboard,H-100,[2.4,.55,.55,.7,.75,.7,.7,1.4,1.25],5.7,20);
+  rect(a,38,ydash-55,W-76,38,PA,L);txt(a,46,ydash-32,"How to read this page",8.5,true,"left",N);
+  txt(a,46,ydash-45,"A high CV% does not automatically mean non-conformance; it means higher relative variation and deserves process review.",6.7,false,"left",M);
+  txt(a,46,ydash-54,"Stability and compliance should be discussed separately.",6.7,false,"left",M);
+
+  for(const p of full){
+    a=pg();top(a,pn++,total);txt(a,38,H-58,p.product+(p.alias?` | ${p.alias}`:""),14,true,"left",N);
+    txt(a,38,H-74,`YTD stability view | ${p.months.length} reported months | Data through ${data.dataThroughLabel}`,7,false,"left",M);
+    cards(a,[[p.months.length,"Reported Months"],[p.av_n,"A.V Count"],[fmt("cv",stat(p,"r45").cv),"R45 CV%"],[fmt("cv",stat(p,"blaine").cv),"Blaine CV%"],[fmt("cv",stat(p,"d28").cv),"28D CV%"]],H-120);
+    const gap=9,cw=(W-76-2*gap)/3,cy=H-270,ch=130;
+    chart(a,38,cy,cw,ch,p.months,[{key:"r45",name:"R45"},{key:"so3",name:"SO3"}],"Fineness / SO3 Monthly Trend",1,4);
+    chart(a,38+cw+gap,cy,cw,ch,p.months,[{key:"blaine",name:"Blaine"}],"Blaine Monthly Trend",0,4);
+    chart(a,38+2*(cw+gap),cy,cw,ch,p.months,[{key:"d2",name:"2D"},{key:"d7",name:"7D"},{key:"d28",name:"28D"}],"Strength Monthly Trend",1,4);
+    const rows=p.months.map(m=>[m.label+(m.mtd?" MTD":""),m.av_n||"-",fmt("r45",m.r45),fmt("blaine",m.blaine),fmt("so3",m.so3),fmt("d2",m.d2),fmt("d7",m.d7),fmt("d28",m.d28)]);
+    txt(a,38,290,"Monthly Average Results",9,true,"left",N);
+    table(a,["Month","A.V","R45","Blaine","SO3","2D","7D","28D"],rows,280,[.85,.55,.65,.85,.65,.6,.6,.6],5.6,16,38,465);
+    txt(a,523,290,"Material Mix Summary",9,true,"left",N);
+    if(/M10/i.test(p.product)){rect(a,523,205,W-561,75,[1,1,1],L);txt(a,531,260,"Material composition trend is not applicable for M10 distribution in this review.",6.5,false,"left",M)}
+    else if(p.raw_stats&&p.raw_stats.length){const rr=p.raw_stats.map(r=>[r.label,r.n,fmt("r45",r.avg),fmt("r45",r.min),fmt("r45",r.max),fmt("r45",r.range)]);table(a,["Material","n","Avg %","Min","Max","Range"],rr,280,[1.1,.45,.65,.6,.6,.6],5.2,16,523,W-561)}
+    txt(a,38,145,"Stability Statistics from Monthly Averages",9,true,"left",N);
+    const strows=p.stats.map(s=>[s.label,s.unit,s.n,fmt(s.k,s.avg),fmt(s.k,s.sd),fmt("cv",s.cv)]);
+    table(a,["Parameter","Unit","n Months","Average","Std. Dev.","CV%"],strows,135,[2.0,.7,.7,.9,.9,.7],5.5,15);
+  }
+
+  if(limited.length){
+    a=pg();top(a,pn++,total);txt(a,38,H-58,"LIMITED / SHORT HISTORY PRODUCTS",15,true,"left",N);
+    txt(a,38,H-75,"Trend charts are intentionally suppressed when monthly history is too short, to avoid over-interpreting one or two points.",7,false,"left",M);
+    let y=H-105;
+    for(const p of limited){
+      const rows=p.months.map(m=>[m.label+(m.mtd?" MTD":""),m.av_n||"-",fmt("r45",m.r45),fmt("blaine",m.blaine),fmt("so3",m.so3),fmt("d2",m.d2),fmt("d7",m.d7),fmt("d28",m.d28)]);
+      const block=58+15+rows.length*15+12;
+      rect(a,38,y-block,W-76,block-5,[1,1,1],L);
+      txt(a,46,y-22,p.product+(p.alias?` | ${p.alias}`:""),9,true,"left",N);
+      txt(a,46,y-36,`Reported months: ${p.months.length} | A.V Count: ${p.av_n} | Review status: ${p.focus}`,6.5,false,"left",M);
+      table(a,["Month","A.V","R45","Blaine","SO3","2D","7D","28D"],rows,y-47,[.75,.55,.65,.8,.6,.6,.6,.6],5.2,15,46,W-92,15);
+      y-=block+12;
+    }
+  }
+
+  const objs=[];objs[1]=bstr("<< /Type /Catalog /Pages 2 0 R >>");const logoBytes=b64bytes(SIGMA_LOGO_JPEG_B64);objs[5]=join([bstr(`<< /Type /XObject /Subtype /Image /Width 95 /Height 110 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${logoBytes.length} >>\nstream\n`),logoBytes,bstr("\nendstream")]);let po=[],co=[],k=6;pages.forEach(()=>{po.push(k++);co.push(k++)});
+  objs[2]=bstr(`<< /Type /Pages /Count ${pages.length} /Kids [${po.map(x=>x+" 0 R").join(" ")}] >>`);
+  objs[3]=bstr("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  objs[4]=bstr("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  pages.forEach((p,i)=>{const s=p.join("\n")+"\n";objs[po[i]]=bstr(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << /Im1 5 0 R >> >> /Contents ${co[i]} 0 R >>`);objs[co[i]]=bstr(`<< /Length ${s.length} >>\nstream\n${s}endstream`)});
+  const head=bstr("%PDF-1.4\n"),parts=[head],offs=[0];let pos=head.length;
+  for(let i=1;i<objs.length;i++){const pre=bstr(`${i} 0 obj\n`),post=bstr("\nendobj\n");offs[i]=pos;parts.push(pre,objs[i],post);pos+=pre.length+objs[i].length+post.length}
+  let xr=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;for(let i=1;i<objs.length;i++)xr+=String(offs[i]).padStart(10,"0")+" 00000 n \n";
+  xr+=`trailer\n<< /Size ${objs.length} /Root 1 0 R >>\nstartxref\n${pos}\n%%EOF`;parts.push(bstr(xr));return join(parts);
+}
+
+async function exportPdf(){
+  if(!current)return;
+  $("#print").disabled=true;
+  try{
+    setStatus("جاري إنشاء PDF السنوي المفصل...");
+    const bytes=makePdf(current),url=URL.createObjectURL(new Blob([bytes],{type:"application/pdf"})),a=document.createElement("a");
+    a.href=url;a.download=`Sigma_Annual_QC_Performance_Product_Stability_${current.year}_YTD_Executive_Review.pdf`;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+    setStatus(`تم إنشاء PDF سنوي Executive Review كامل A4 Landscape.`);
+  }catch(e){console.error(e);setStatus(`تعذر إنشاء PDF: ${e.message}`,true)}
+  finally{$("#print").disabled=false}
+}
+
+$("#generate").addEventListener("click",generate);
+$("#print").addEventListener("click",exportPdf);
+</script>
+</body>
+</html>
